@@ -1,0 +1,106 @@
+// Définition des broches
+const int btnInc = 6;       // Bouton d'incrémentation de la vitesse
+const int btnDec = 3;       // Bouton de décrémentation de la vitesse
+const int ledR = 11;        // LED rouge
+const int ledB = 10;        // LED bleue
+const int ledV = 9;         // LED verte
+const int motorPin = 5;     // Pin pour contrôler le moteur avec PWM
+const int resetPin = 8;     // Bouton de réinitialisation du moteur et de la vitesse
+
+// Variables pour le contrôle de la vitesse et de l'état du moteur
+int boutonState;            // État actuel du bouton (incrémentation ou décrémentation)
+int prevBoutonIncState = HIGH; // État précédent du bouton d'incrémentation
+int prevBoutonDecState = HIGH; // État précédent du bouton de décrémentation
+int motorSpeed = 0;         // Vitesse actuelle du moteur (de 0 à 255)
+int colorStep = 0;          // Indicateur pour gérer la couleur de la LED en fonction de la vitesse
+
+// Définition des configurations de couleurs et vitesses associées à chaque étape (5 étapes)
+struct ColorConfig {
+  int motorSpeed;           // Vitesse du moteur
+  int ledRIntensity;        // Intensité de la LED rouge
+  int ledBIntensity;        // Intensité de la LED bleue
+  int ledVIntensity;        // Intensité de la LED verte
+};
+
+ColorConfig colorConfigs[5] = {
+  { 0, 0, 0, 255 },   // 1: Vitesse = 0, Vert pur
+  { 51, 0, 128, 255 }, // 2: Vitesse = 51, Cyan pur
+  { 102, 0, 255, 0 },  // 3: Vitesse = 102, Bleu pur
+  { 153, 128, 255, 0 },// 4: Vitesse = 153, Violet pur
+  { 255, 255, 0, 0 }   //5: Vitesse = 255, Rouge pur
+};
+
+void setup() {
+  // Initialisation des broches
+  pinMode(btnInc, INPUT_PULLUP);  // Bouton d'incrémentation
+  pinMode(btnDec, INPUT_PULLUP);  // Bouton de décrémentation
+  pinMode(resetPin, INPUT_PULLUP); // Bouton de réinitialisation
+
+  pinMode(motorPin, OUTPUT);      // Moteur PWM
+  pinMode(ledR, OUTPUT);          // LED rouge
+  pinMode(ledB, OUTPUT);          // LED bleue
+  pinMode(ledV, OUTPUT);          // LED verte
+  
+  // Initialisation des LEDs à l'état éteint
+  digitalWrite(ledR, LOW);
+  digitalWrite(ledB, LOW);
+  digitalWrite(ledV, LOW);
+}
+
+void loop() {
+  // Lecture de l'état du bouton d'incrémentation
+  boutonState = digitalRead(btnInc);
+
+  // Si le bouton d'incrémentation a été pressé (changement d'état)
+  if ((boutonState != prevBoutonIncState) && (boutonState == LOW)) {
+    colorStep++;  // Augmente la couleur pour montrer un changement de vitesse
+  }
+  prevBoutonIncState = boutonState; // Sauvegarde l'état précédent du bouton
+
+  // Lecture de l'état du bouton de décrémentation
+  boutonState = digitalRead(btnDec);
+  
+  // Si le bouton de décrémentation a été pressé (changement d'état)
+  if ((boutonState != prevBoutonDecState) && (boutonState == LOW)) {
+    colorStep--;  // Diminue la couleur pour réduire la vitesse
+  }
+  prevBoutonDecState = boutonState; // Sauvegarde l'état précédent du bouton
+
+  // Limiter la valeur de colorStep entre 0 et 4 pour contrôler la couleur
+  if (colorStep > 4) {
+    colorStep = 4;
+  }
+  if (colorStep < 0) {
+    colorStep = 0;
+  }
+
+  // Récupérer la configuration de couleur et de vitesse en fonction de colorStep
+  ColorConfig currentConfig = colorConfigs[colorStep];
+
+  // Définir la vitesse du moteur et les couleurs des LEDs
+  analogWrite(motorPin, currentConfig.motorSpeed);
+  analogWrite(ledR, currentConfig.ledRIntensity);
+  analogWrite(ledB, currentConfig.ledBIntensity);
+  analogWrite(ledV, currentConfig.ledVIntensity);
+
+  // Vérification du bouton reset pour réinitialiser le moteur et la vitesse
+  if (digitalRead(resetPin) == LOW) {
+    motorSpeed = 0;          // Réinitialiser la vitesse
+    colorStep = 0;           // Réinitialiser la couleur
+    analogWrite(motorPin, 0); // Arrêter le moteur
+    updateLEDs();             // Mettre à jour les LEDs
+    delay(200);               // Anti-rebond
+  }
+}
+
+// Fonction pour mettre à jour les LEDs en fonction de la vitesse du moteur
+void updateLEDs() {
+  // La LED rouge devient plus brillante avec la vitesse du moteur
+  int redIntensity = map(motorSpeed, 0, 255, 255, 0);
+  // La LED bleue devient plus brillante avec la vitesse du moteur
+  int blueIntensity = map(motorSpeed, 0, 255, 0, 255);
+
+  analogWrite(ledR, redIntensity); // LED rouge
+  analogWrite(ledB, blueIntensity); // LED bleue
+  analogWrite(ledV, 0);             // LED verte éteinte
+}
